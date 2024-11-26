@@ -1,41 +1,101 @@
 <template>
-  <v-app style="width: 100%">
-    <v-app-bar app color="primary" dark> </v-app-bar>
-    <v-main style="width: 100%">
-      <div class="text-h4">Test</div>
-      <div v-if="is_loading">Loading...</div>
-
-      <v-container
-        v-if="!is_loading"
-        style="width: 100%; background-color: red"
+  <v-app style="width: 100%; max-height: 100vh" class="pa-0">
+    <v-app-bar color="primary" class="pa-0 d-flex align-center navbar">
+      <v-btn
+        class="btn-priority"
+        style="height: 100%"
+        @click="filterByPriority('Highest')"
       >
-        <v-row>
-          <v-col cols="12">
-            <!-- Use <v-data-table> instead of <v-table> -->
-            <v-data-table
-              class="elevation-1"
-              :headers="headers"
-              :items="data_result"
-              :items-per-page="20"
-              item-key="id"
-            >
-              <template v-slot:item="props">
-                <tr>
-                  <td>{{ props.item.id }}</td>
-                  <td>{{ props.item.key }}</td>
-                  <td>{{ props.item.username }}</td>
-                  <td>{{ props.item.priority }}</td>
-                  <td>{{ props.item.status }}</td>
-                  <td>{{ props.item.summary.substring(0, 20) + ".." }}</td>
-                  <td>{{ props.item.timespent || 0 }}</td>
-                  <td>{{ format_date(props.item.created_at) }}</td>
-                </tr>
-              </template>
-            </v-data-table>
-          </v-col>
-        </v-row>
-      </v-container>
-    </v-main>
+        Highest Priority
+      </v-btn>
+      <v-btn
+        class="btn-priority"
+        style="height: 100%; margin-left: 10px"
+        @click="filterByPriority('High')"
+      >
+        High Priority
+      </v-btn>
+      <v-btn
+        class="btn-priority"
+        style="height: 100%; margin-left: 10px"
+        @click="filterByPriority('Medium')"
+      >
+        Medium Priority
+      </v-btn>
+      <v-btn
+        class="btn-priority"
+        style="height: 100%; margin-left: 10px"
+        @click="filterByPriority('Lowest')"
+      >
+        Low Priority
+      </v-btn>
+    </v-app-bar>
+    <div v-if="is_loading">Loading...</div>
+
+    <div style="width: 100; height: 95vh">
+      <v-row v-if="!is_loading">
+        <v-col cols="12">
+          <v-data-table
+            class="elevation-1"
+            :headers="headers"
+            :items="filteredData"
+            :items-per-page="20"
+            item-key="id"
+          >
+            <template v-if="!is_loading" v-slot:item="props">
+              <tr>
+                <td>
+                  <v-row align="center" no-gutters>
+                    <v-col class="d-flex" cols="auto">
+                      <v-img
+                        :src="props.item.user_image"
+                        width="25"
+                        height="25"
+                        class="rounded-circle"
+                        alt="User Avatar"
+                      />
+                    </v-col>
+
+                    <v-col class="d-flex align-center ml-2" cols="auto">
+                      {{ props.item.username }}
+                    </v-col>
+                  </v-row>
+                </td>
+                <td>{{ props.item.statusCounts }}</td>
+                <td>
+                  <v-row align="center" no-gutters>
+                    <v-col class="d-flex" cols="auto">
+                      <v-img
+                        :src="props.item.user_image"
+                        width="25"
+                        height="25"
+                        class="rounded-circle"
+                        alt="User Avatar"
+                      />
+                    </v-col>
+
+                    <v-col class="d-flex align-center ml-2" cols="auto">
+                      {{ props.item.username }}
+                    </v-col>
+                  </v-row>
+                </td>
+                <td>
+                  <v-chip text-color="black" label>
+                    {{ props.item.priority }}
+                  </v-chip>
+                </td>
+
+                <td>{{ props.item.summary }}</td>
+                <td>
+                  {{ props.item.timespent }}
+                </td>
+                <td>{{ props.item.created_at }}</td>
+              </tr>
+            </template>
+          </v-data-table>
+        </v-col>
+      </v-row>
+    </div>
   </v-app>
 </template>
 
@@ -44,55 +104,31 @@ export default {
   data() {
     return {
       headers: [
-        { text: "ID", align: "start", key: "id", value: "id" },
-        { text: "Key", align: "start", value: "name" },
-        { text: "Username", value: "task" },
-        { text: "Priority", value: "email" },
-        { text: "Status", value: "status" },
-        { text: "Summary", value: "summary" },
-        { text: "timespent", value: "timespent" },
-        { text: "Created", value: "created" },
+        { text: "User" },
+        { text: "Tickets total" },
+        { text: "Open" },
+        { text: "Work in progress" },
+        { text: "Waiting on support" },
+        { text: "Waiting on client" },
+        { text: "Ready for production" },
       ],
-      // Sample users data for testing
-
-      // Pagination setup
-      page: 1,
       data_result: [],
+      filteredData: [],
       is_loading: false,
     };
   },
 
-  //   id: [ ].id
-  // key: [ ].key
-
-  // Username  -> [ ].fields.assignee.displayName
-  // created: [ ].fields.created
-  // descritpion: [ ].fields.description
-  // label: [ ].fields[ array ]
-  // prioriret: [ ].fields.priority {object}.name “lowest, high itd…)
-  // Status : [ ].fields.status {object}.statusCategory.name (“done” in progress”)
-  // Summary: [ ].fields.summary
-  // timespent: [ ].fields.timespent
-
   methods: {
-    format_date(date_string) {
-      const date = new Date(date_string);
-      const day = date.getDay();
-      const month = date.getMonth();
-      const year = date.getFullYear();
-
-      const new_date = day + "." + month + "." + year;
-
-      return new_date;
-    },
     get_data() {
       this.is_loading = true;
-      var api_url =
-        "http://localhost:8010/proxy/rest/api/2/search?jql=project=PI";
+      let api_url =
+        "http://localhost:8010/proxy/rest/api/2/search?jql=project=PI%20AND%20assignee%20IS%20NOT%20EMPTY%20AND%20status%20!=%20%22Done%22&maxResults=1000"; // Set a large enough number for maxResults
+
+      let usersData = {}; // Object to store user-specific data
 
       const authHeader =
         "Basic " +
-        btoa(process.env.VUE_APP_EMAIL + ":" + process.env.VUE_APP_API_KEY); // This is how Basic Auth headers are built
+        btoa(process.env.VUE_APP_EMAIL + ":" + process.env.VUE_APP_API_KEY);
 
       this.$http({
         method: "GET",
@@ -104,30 +140,59 @@ export default {
         },
       })
         .then((response) => {
-          //console.log("RESPONSE", response.data);
-
-          console.log("ISSUES", response.data);
           const data_from = response.data.issues;
+          console.log("ALL DATA", data_from);
 
-          (this.data_result = data_from.map((x) => {
-            return {
-              id: x.id,
-              key: x.key,
-              username: x.fields.assignee.displayName,
-              description: x.fields.description,
-              // label: x.fields.labels[x],
-              priority: x.fields.priority.name,
-              status: x.fields.status.statusCategory.name,
-              summary: x.fields.summary,
-              timespent: x.fields.timespent,
-              created_at: x.fields.created,
-            };
-          })),
-            console.log("NEW DATA", this.data_result);
-          this.is_loading = false;
+          // Define possible statuses
+          const statuses = [
+            "Open",
+            "Work in progress",
+            "Waiting on support",
+            "Waiting on client",
+            "Ready for production",
+          ];
+
+          // Loop through issues and group them by user
+          data_from.forEach((x) => {
+            const userId = x.fields.assignee
+              ? x.fields.assignee.displayName
+              : "Unassigned"; // User ID (name)
+            const status = x.fields.status.name; // Status of the issue
+            const userImage = x.fields.assignee
+              ? x.fields.assignee.avatarUrls["48x48"]
+              : null; // User image URL
+
+            // Initialize user structure if not already present
+            if (!usersData[userId]) {
+              usersData[userId] = {
+                username: userId,
+                user_image: userImage,
+                statusCounts: {}, // Will hold counts for each status
+              };
+
+              // Initialize counts for each status to 0
+              statuses.forEach((status) => {
+                usersData[userId].statusCounts[status] = 0; // Set initial count to 0 for each status
+              });
+            }
+
+            // Increment status count for the user
+            if (usersData[userId].statusCounts[status] !== undefined) {
+              usersData[userId].statusCounts[status] += 1; // Increment the count for the status
+            }
+          });
+
+          // Convert usersData object to an array for rendering
+          this.usersStats = Object.values(usersData);
+          console.log("User Stats with Status Counts:", this.usersStats);
+
+          // Assign the final data for further usage
+          this.filteredData = this.usersStats;
+          this.data_result = this.usersStats;
         })
         .catch((error) => {
           console.log("ERROR", error);
+          this.is_loading = false;
         })
         .finally(() => {
           this.is_loading = false;
@@ -138,8 +203,19 @@ export default {
   mounted() {
     this.is_loading = true;
     this.get_data();
-    console.log("ENV", process.env.VUE_APP_EMAIL); // Logs your email
-    console.log("ENV", process.env.VUE_APP_API_KEY);
+    // console.log("ENV", process.env.VUE_APP_EMAIL); // Logs your email
+    // console.log("ENV", process.env.VUE_APP_API_KEY);
   },
 };
 </script>
+
+<style>
+.navbar {
+  padding: 0;
+  margin: 0;
+}
+
+.v-img.rounded-circle {
+  border-radius: 50%;
+}
+</style>
