@@ -1,8 +1,8 @@
 <template>
   <v-app style="width: 100; height: 100%" class="pa-0">
-    <div v-if="is_loading" style="background-color: red">Loading...</div>
+    <div v-if="is_loading">Loading...</div>
 
-    <div style="width: 100; background-color: red; height: 100vh !important">
+    <div style="width: 100; height: 100vh">
       <v-row v-if="!is_loading" style="height: 100%">
         <v-col cols="12" align="center">
           <v-data-table
@@ -21,7 +21,7 @@
                   {{ props.item.priority }}
                 </td>
                 <td>
-                  {{ props.item.created_at }}
+                  {{ format_date(props.item.created_at) }}
                 </td>
 
                 <td>
@@ -44,6 +44,7 @@
                 <td>
                   {{ props.item.due_date }}
                 </td>
+                <td>{{ filtered_labels(props.item.labels) }}</td>
               </tr>
             </template>
           </v-data-table>
@@ -64,6 +65,7 @@ export default {
         { text: "Created " },
         { text: "Assignee" },
         { text: "Due Date" },
+        { text: "Label" },
       ],
       data_result: [],
       filteredData: [],
@@ -72,6 +74,23 @@ export default {
   },
 
   methods: {
+    format_date(date) {
+      const new_date = new Date(date);
+
+      return (
+        new_date.getDay() +
+        "." +
+        new_date.getMonth() +
+        "." +
+        new_date.getFullYear()
+      );
+    },
+    filtered_labels(labels) {
+      if (Array.isArray(labels)) {
+        return labels.filter((label) => label !== "jira_escalated").join(", ");
+      }
+      return "";
+    },
     get_data() {
       this.is_loading = true;
       let api_url =
@@ -94,10 +113,8 @@ export default {
           const data_from = response.data.issues;
           console.log("RESPONSE DATA", response.data);
 
-          // Initialize data_result as an array to hold multiple issues
-          this.data_result = []; // Empty array before starting to populate
+          this.data_result = [];
 
-          // Loop through each issue and push to data_result
           data_from.forEach((x) => {
             this.data_result.push({
               ticket_id: x.key,
@@ -108,7 +125,8 @@ export default {
               user_image: x.fields.assignee
                 ? x.fields.assignee.avatarUrls["48x48"]
                 : null,
-              due_date: x.fields.duedate,
+              due_date: x.fields.duedate || "-",
+              labels: x.fields.labels || "-",
             });
           });
 

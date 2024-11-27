@@ -10,13 +10,13 @@
       height="100%"
     >
       <!-- Carousel item also fills the available space -->
-      <!-- <v-carousel-item>
+      <v-carousel-item>
         <component :is="task_list" />
-      </v-carousel-item> -->
-
+      </v-carousel-item>
+      <!-- 
       <v-carousel-item>
         <component :is="userList" />
-      </v-carousel-item>
+      </v-carousel-item> -->
     </v-carousel>
   </v-main>
 </template>
