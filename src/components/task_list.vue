@@ -42,9 +42,20 @@
                   </v-row>
                 </td>
                 <td>
-                  {{ props.item.due_date }}
+                  {{ format_date(props.item.due_date) }}
                 </td>
                 <td>{{ filtered_labels(props.item.labels) }}</td>
+                <td>
+                  <v-chip
+                    v-if="is_over_due(props.item.due_date) === 'Overdue'"
+                    color="red"
+                    text-color="white"
+                    label
+                  >
+                    Overdue
+                  </v-chip>
+                  <span v-else>-</span>
+                </td>
               </tr>
             </template>
           </v-data-table>
@@ -66,30 +77,54 @@ export default {
         { text: "Assignee" },
         { text: "Due Date" },
         { text: "Label" },
+        { text: "Status" },
       ],
       data_result: [],
       filteredData: [],
+      is_overdue: false,
       is_loading: false,
     };
   },
 
   methods: {
-    format_date(date) {
-      const new_date = new Date(date);
+    is_over_due(start_date) {
+      let result = "";
+      const first_date = new Date(start_date); // Convert the passed start_date to a Date object
+      const current_date = new Date();
 
-      return (
-        new_date.getDay() +
-        "." +
-        new_date.getMonth() +
-        "." +
-        new_date.getFullYear()
-      );
+      this.data_result.map((x) => {
+        if (x.due_date !== "-") {
+          if (current_date > first_date) {
+            this.is_overdue = true;
+            return (result = "Overdue");
+          } else {
+            return (result = "-");
+          }
+        }
+      });
+      return result;
+    },
+    format_date(date_string) {
+      const cleaned_date_string = date_string.split("(")[0].trim();
+
+      const date = new Date(cleaned_date_string);
+
+      if (isNaN(date.getTime())) {
+        return "-";
+      }
+
+      const day = ("0" + date.getDate()).slice(-2);
+      const month = ("0" + (date.getMonth() + 1)).slice(-2);
+      const year = date.getFullYear();
+
+      return `${day}.${month}.${year}`;
     },
     filtered_labels(labels) {
       if (Array.isArray(labels)) {
         return labels.filter((label) => label !== "jira_escalated").join(", ");
+      } else {
+        return "-";
       }
-      return "";
     },
     get_data() {
       this.is_loading = true;
