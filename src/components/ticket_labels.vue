@@ -144,7 +144,7 @@ export default {
     get_data() {
       this.is_loading = true;
       let api_url =
-        "http://localhost:8010/proxy/rest/api/2/search?jql=project%20%3D%20DEV%20AND%20assignee%20IS%20NOT%20EMPTY";
+        "http://localhost:8010/proxy/rest/api/2/search?jql=project%20%3D%20PI%20AND%20assignee%20IS%20NOT%20EMPTY";
 
       const authHeader =
         "Basic " +
