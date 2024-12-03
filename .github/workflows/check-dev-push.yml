@@ -3,7 +3,7 @@ name: Check for Errors on Dev Push
 on:
   push:
     branches:
-      - dev  
+      - main 
 
 jobs:
   lint-and-test:
@@ -29,3 +29,21 @@ jobs:
 
       - name: Build app (optional)
         run: npm run build 
+
+  notify-slack:
+    needs: lint-and-test
+    if: success()  
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send Slack Direct Message Notification
+        run: |
+          curl -X POST "https://slack.com/api/chat.postMessage" \
+          -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" \
+          -H "Content-Type: application/json" \
+          --data '{
+            "channel": "${{ secrets.SLACK_USER_ID }}", 
+            "text": ":white_check_mark: *GitHub Action Succeeded* :white_check_mark\n\nThe tests and linting passed successfully in the `main` branch. All checks are complete!"
+          }'
+
+
