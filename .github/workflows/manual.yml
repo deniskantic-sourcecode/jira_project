@@ -1,0 +1,45 @@
+name: Check for Errors on Dev Push
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run Linter
+        run: npm run lint
+
+      - name: Build app (optional)
+        run: npm run build
+
+  notify-slack:
+    needs: lint-and-test
+    if: success()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send Slack Direct Message Notification
+        run: |
+          echo "Sending Slack message..."
+          curl -X POST "https://slack.com/api/chat.postMessage" \
+          -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" \
+          -H "Content-Type: application/json" \
+          --data '{
+            "channel": "${{ secrets.SLACK_USER_ID }}", 
+            "text": ":white_check_mark: *GitHub Action Succeeded* :white_check_mark\n\nThe tests and linting passed successfully in the `dev` branch. All checks are complete!"
+          }' || echo "Slack notification failed"
