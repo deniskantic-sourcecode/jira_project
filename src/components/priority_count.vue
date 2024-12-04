@@ -1,0 +1,154 @@
+<template>
+  <div
+    class="d-flex justify-center items-center"
+    style="height: 100vh; width: 100%"
+  >
+    <v-chart
+      :option="option"
+      style="height: 100%; width: 100%; padding-top: 5rem"
+    ></v-chart>
+  </div>
+</template>
+
+<script>
+import VChart from "vue-echarts";
+import "echarts";
+
+export default {
+  components: {
+    VChart,
+  },
+  data() {
+    return {
+      option: {
+        title: {
+          text: "Tickets by Priority",
+          subtext: "Total Count by Priority",
+          left: "center",
+          fontSize: 20,
+        },
+        tooltip: {
+          trigger: "item",
+          formatter: "{a} <br/>{b}: {c} ({d}%)",
+        },
+        legend: {
+          orient: "horizontal",
+          bottom: "10%",
+          left: "center",
+          data: ["Low", "Medium", "High", "Highest"],
+        },
+        series: [
+          {
+            name: "Priority",
+            type: "pie",
+            radius: "70%",
+            data: [],
+            label: {
+              fontSize: 14,
+              formatter: "{b}: {c} ({d}%)",
+            },
+            itemStyle: {
+              borderRadius: 10,
+              borderColor: "#fff",
+              borderWidth: 2,
+            },
+          },
+        ],
+      },
+      is_loading: false,
+    };
+  },
+
+  methods: {
+    get_data() {
+      this.is_loading = true;
+
+      const api_url =
+        "http://localhost:8010/proxy/rest/api/2/search?jql=project=PI%20AND%20assignee%20IS%20NOT%20EMPTY%20AND%20status%20!=%20%22Done%22";
+
+      let priorityCounts = {
+        Low: 0,
+        Medium: 0,
+        High: 0,
+        Highest: 0,
+      };
+
+      const authHeader =
+        "Basic " +
+        btoa(process.env.VUE_APP_EMAIL + ":" + process.env.VUE_APP_API_KEY);
+
+      let startAt = 0;
+      let maxResults = 50;
+
+      const fetchData = () => {
+        this.$http({
+          method: "GET",
+          url: `${api_url}&startAt=${startAt}&maxResults=${maxResults}`,
+          headers: {
+            Authorization: authHeader,
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+        })
+          .then((response) => {
+            const data_from = response.data.issues;
+
+            data_from.forEach((x) => {
+              const priority = x.fields.priority
+                ? x.fields.priority.name
+                : "Low";
+
+              if (priorityCounts[priority] !== undefined) {
+                priorityCounts[priority] += 1;
+              }
+            });
+
+            if (data_from.length === maxResults) {
+              startAt += maxResults;
+              fetchData();
+            } else {
+              // Set up the chart data with colors
+              const pieData = Object.keys(priorityCounts).map((priority) => ({
+                name: priority,
+                value: priorityCounts[priority],
+                itemStyle: this.getPriorityColor(priority),
+              }));
+
+              this.option.series[0].data = pieData;
+
+              // Set the legend data dynamically based on priorityCounts
+              this.option.legend.data = Object.keys(priorityCounts);
+
+              this.is_loading = false;
+            }
+          })
+          .catch((error) => {
+            console.log("ERROR", error);
+            this.is_loading = false;
+          });
+      };
+
+      fetchData();
+    },
+
+    getPriorityColor(priority) {
+      switch (priority) {
+        case "Highest":
+          return { color: "#ff4d4f" }; // Strong Red
+        case "High":
+          return { color: "#ff7f7f" }; // Light Red
+        case "Medium":
+          return { color: "#ffb74d" }; // Orange
+        case "Low":
+          return { color: "#66bb6a" }; // Green
+        default:
+          return { color: "#66bb6a" }; // Default to green
+      }
+    },
+  },
+
+  mounted() {
+    this.get_data();
+  },
+};
+</script>
