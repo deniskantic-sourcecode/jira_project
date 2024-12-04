@@ -14,13 +14,17 @@
         <component :is="task_list" />
       </v-carousel-item> -->
 
-      <v-carousel-item>
+      <!-- <v-carousel-item>
         <component :is="userList" />
-      </v-carousel-item>
+      </v-carousel-item> -->
 
       <!-- <v-carousel-item>
         <component :is="ticket_labels" />
       </v-carousel-item> -->
+
+      <v-carousel-item>
+        <component :is="users_ticket_bar" />
+      </v-carousel-item>
     </v-carousel>
   </v-main>
 </template>
@@ -33,6 +37,7 @@ export default {
       userList: null,
       task_list: null,
       ticket_labels: null,
+      users_ticket_bar: null,
     };
   },
   mounted() {
@@ -54,6 +59,13 @@ export default {
     import("@/components/ticket_labels.vue")
       .then((module) => {
         this.ticket_labels = module.default;
+      })
+      .catch((error) => {
+        console.error("Failed to load component", error);
+      });
+    import("@/components/users_ticket_bar.vue")
+      .then((module) => {
+        this.users_ticket_bar = module.default;
       })
       .catch((error) => {
         console.error("Failed to load component", error);
