@@ -2,10 +2,7 @@
   <v-app style="width: 100%; max-height: 100vh" class="pa-0">
     <div v-if="is_loading">Loading...</div>
 
-    <v-chart
-      :option="option"
-      style="height: 100%; width: 100%; padding-top: 3rem"
-    ></v-chart>
+    <v-chart :option="option" style="height: 100%; width: 100%"></v-chart>
   </v-app>
 </template>
 
@@ -28,42 +25,54 @@ export default {
         { text: "Ready for production" },
       ],
       option: {
+        backgroundColor: "#62a5ad",
         title: {
+          top: "2%",
           text: "Tickets per user overview",
           subtext: "PI Board",
           left: "center",
-          fontSize: 20,
-        },
-        tooltip: {
-          trigger: "axis",
-          axisPointer: {
-            type: "shadow",
+          textStyle: {
+            color: "#ffffff",
+            fontWeight: "bold",
+            fontSize: 25,
+          },
+          subtextStyle: {
+            color: "#fff",
+            fontSize: 15,
           },
         },
         grid: {
           left: "3%",
           right: "4%",
           top: "10%",
-          bottom: "3%",
           containLabel: true,
-        },
-        legend: {
-          top: 50,
-          itemGap: 20,
-          itemWidth: 20,
         },
         xAxis: {
           type: "value",
           max: 35,
           interval: 5,
+          axisLabel: {
+            fontSize: 16,
+            fontWeight: "bold",
+            color: "#ffffff",
+          },
+        },
+        legend: {
+          bottom: "2%",
+          itemGap: 20,
+          itemWidth: 20,
+          textStyle: {
+            fontSize: 14,
+            fontWeight: "bold",
+            color: "#ffffff",
+          },
         },
         yAxis: {
           type: "category",
           axisLabel: {
-            fontSize: 16,
-            formatter: function (value) {
-              return value === 0 ? "" : value; // If the value is 0, don't display it
-            },
+            fontSize: 20,
+            color: "#ffffff",
+            fontWeight: "bold",
           },
           data: [],
         },
@@ -91,6 +100,9 @@ export default {
         stack: "total",
         label: {
           show: true,
+          fontSize: 25,
+          color: "#ffffff",
+          fontWeight: "bold",
         },
         emphasis: {
           focus: "series",
