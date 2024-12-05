@@ -2,59 +2,20 @@
   <v-app style="width: 100%; max-height: 100vh" class="pa-0">
     <div v-if="is_loading">Loading...</div>
 
-    <div style="width: 100; height: 100%">
-      <v-row v-if="!is_loading">
-        <v-col cols="12" align="center">
-          <v-data-table
-            class="elevation-1"
-            :headers="headers"
-            :items="data_result"
-            item-key="id"
-            hide-default-footer
-          >
-            <template v-if="!is_loading" v-slot:item="props">
-              <tr align="center">
-                <td>
-                  <v-row align="center" no-gutters>
-                    <v-col class="d-flex" cols="auto">
-                      <v-img
-                        :src="props.item.user_image"
-                        width="25"
-                        height="25"
-                        class="rounded-circle"
-                        alt="User Avatar"
-                      />
-                    </v-col>
-
-                    <v-col class="d-flex align-center ml-2" cols="auto">
-                      {{ props.item.username }}
-                    </v-col>
-                  </v-row>
-                </td>
-                <td>{{ props.item.total_count }}</td>
-                <td>
-                  {{ props.item.statusCounts.open }}
-                </td>
-                <td>
-                  {{ props.item.statusCounts.work_in_progress }}
-                </td>
-
-                <td>{{ props.item.statusCounts.waiting_for_support }}</td>
-                <td>
-                  {{ props.item.statusCounts.waiting_on_client }}
-                </td>
-                <td>{{ props.item.statusCounts.ready_for_production }}</td>
-              </tr>
-            </template>
-          </v-data-table>
-        </v-col>
-      </v-row>
-    </div>
+    <v-chart
+      :option="option"
+      style="height: 100%; width: 100%; padding-top: 3rem"
+    ></v-chart>
   </v-app>
 </template>
 
 <script>
+import VChart from "vue-echarts";
+import "echarts";
 export default {
+  components: {
+    VChart,
+  },
   data() {
     return {
       headers: [
@@ -66,6 +27,48 @@ export default {
         { text: "Waiting on client" },
         { text: "Ready for production" },
       ],
+      option: {
+        title: {
+          text: "Tickets per user overview",
+          subtext: "PI Board",
+          left: "center",
+          fontSize: 20,
+        },
+        tooltip: {
+          trigger: "axis",
+          axisPointer: {
+            type: "shadow",
+          },
+        },
+        grid: {
+          left: "3%",
+          right: "4%",
+          top: "10%",
+          bottom: "3%",
+          containLabel: true,
+        },
+        legend: {
+          top: 50,
+          itemGap: 20,
+          itemWidth: 20,
+        },
+        xAxis: {
+          type: "value",
+          max: 35,
+          interval: 5,
+        },
+        yAxis: {
+          type: "category",
+          axisLabel: {
+            fontSize: 16,
+            formatter: function (value) {
+              return value === 0 ? "" : value; // If the value is 0, don't display it
+            },
+          },
+          data: [],
+        },
+        series: [],
+      },
       data_result: [],
       filteredData: [],
       is_loading: false,
@@ -73,6 +76,43 @@ export default {
   },
 
   methods: {
+    initialize_chart() {
+      const statusNames = [
+        "Open",
+        "Work in progress",
+        "Waiting for support",
+        "Waiting on client",
+        "Ready for production",
+      ];
+
+      let generate_series = statusNames.map((status) => ({
+        name: status,
+        type: "bar",
+        stack: "total",
+        label: {
+          show: true,
+        },
+        emphasis: {
+          focus: "series",
+        },
+        data: [],
+      }));
+
+      const usernames = this.data_result.map((x) => {
+        statusNames.forEach((status, index) => {
+          const statusKey = status.split(" ").join("_").toLowerCase();
+          const statusCount = x.statusCounts[statusKey] || "";
+          generate_series[index].data.push(statusCount);
+        });
+
+        return x.username;
+      });
+
+      this.option.yAxis.data = usernames;
+      this.option.series = generate_series;
+
+      console.log("Updated chart option:", this.option);
+    },
     get_data() {
       this.is_loading = true;
       let api_url =
@@ -147,6 +187,11 @@ export default {
 
           this.data_result = this.usersStats;
           console.log("DATA RESULT", this.data_result);
+          console.log(
+            "DATA CHART",
+            (this.option.yAxis.data = this.data_result)
+          );
+          this.initialize_chart();
         })
         .catch((error) => {
           console.log("ERROR", error);
