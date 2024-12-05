@@ -18,18 +18,18 @@ export default {
   data() {
     return {
       option: {
-        backgroundColor: "#0096a9",
+        backgroundColor: "#ffffff",
         title: {
           text: "Tickets by Priority",
           subtext: "Total Count by Priority",
           left: "center",
           top: "5%",
           textStyle: {
-            color: "#ffffff",
+            color: "#0096a9",
             fontSize: 25,
           },
           subtextStyle: {
-            color: "#fff",
+            color: "#0096a9",
             fontSize: 15,
           },
         },
@@ -41,7 +41,7 @@ export default {
           data: ["Low", "Medium", "High", "Highest"],
           textStyle: {
             fontSize: 16,
-            color: "#ffffff",
+            color: "#000000",
           },
         },
         series: [
@@ -51,14 +51,9 @@ export default {
             radius: "70%",
             data: [],
             label: {
-              color: "#ffffff",
+              color: "#0096a9",
               fontSize: 30,
               formatter: "{b}: {c} ({d}%)",
-            },
-            itemStyle: {
-              borderRadius: 10,
-              borderColor: "#fff",
-              borderWidth: 1,
             },
             top: "10%",
           },

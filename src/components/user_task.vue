@@ -25,19 +25,19 @@ export default {
         { text: "Ready for production" },
       ],
       option: {
-        backgroundColor: "#62a5ad",
+        backgroundColor: "#ffffff",
         title: {
           top: "2%",
           text: "Tickets per user overview",
           subtext: "PI Board",
           left: "center",
           textStyle: {
-            color: "#ffffff",
+            color: "#000000",
             fontWeight: "bold",
             fontSize: 25,
           },
           subtextStyle: {
-            color: "#fff",
+            color: "#000000",
             fontSize: 15,
           },
         },
@@ -45,6 +45,7 @@ export default {
           left: "3%",
           right: "4%",
           top: "10%",
+          show: false,
           containLabel: true,
         },
         xAxis: {
@@ -54,25 +55,23 @@ export default {
           axisLabel: {
             fontSize: 16,
             fontWeight: "bold",
-            color: "#ffffff",
+            color: "#000000",
           },
         },
         legend: {
           bottom: "2%",
-          itemGap: 20,
+          itemGap: 30,
           itemWidth: 20,
           textStyle: {
-            fontSize: 14,
-            fontWeight: "bold",
-            color: "#ffffff",
+            fontSize: 16,
+            color: "#000000",
           },
         },
         yAxis: {
           type: "category",
           axisLabel: {
             fontSize: 20,
-            color: "#ffffff",
-            fontWeight: "bold",
+            color: "#000000",
           },
           data: [],
         },
