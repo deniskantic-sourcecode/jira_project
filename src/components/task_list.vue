@@ -3,15 +3,14 @@
     <div v-if="is_loading">Loading...</div>
 
     <div style="width: 100; height: 100vh">
-      <v-row v-if="!is_loading" style="height: 100%">
+      <v-row v-if="!is_loading" style="height: 90vh">
         <v-col cols="12" align="center">
           <v-data-table
             class="elevation-1"
             :headers="headers"
             :items="data_result"
             item-key="id"
-            :items-per-page="data_result.length"
-            hide-default-footer
+            :items-per-page="10"
           >
             <template v-if="!is_loading" v-slot:item="props">
               <tr>
@@ -89,7 +88,7 @@ export default {
   methods: {
     is_over_due(start_date) {
       let result = "";
-      const first_date = new Date(start_date); // Convert the passed start_date to a Date object
+      const first_date = new Date(start_date);
       const current_date = new Date();
 
       this.data_result.map((x) => {
@@ -126,54 +125,70 @@ export default {
         return "-";
       }
     },
-    get_data() {
+    async get_data() {
       this.is_loading = true;
       let api_url =
-        "http://localhost:8010/proxy/rest/api/2/search?jql=project=PI%20AND%20assignee%20IS%20NOT%20EMPTY%20AND%20status%20!=%20%22Done%22%20AND%20(priority%20%3D%20%22High%22%20OR%20priority%20%3D%20%22Highest%22)";
-
+        "http://localhost:8010/proxy/rest/api/2/search?jql=project%20%3D%20PI%20AND%20assignee%20IS%20NOT%20EMPTY%20AND%20status%20%21%3D%20%22Done%22";
       const authHeader =
         "Basic " +
         btoa(process.env.VUE_APP_EMAIL + ":" + process.env.VUE_APP_API_KEY);
 
-      this.$http({
-        method: "GET",
-        url: api_url,
-        headers: {
-          Authorization: authHeader,
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-      })
-        .then((response) => {
-          const data_from = response.data.issues;
-          console.log("RESPONSE DATA", response.data);
+      const maxResults = 50;
+      let totalIssues = [];
 
-          this.data_result = [];
-
-          data_from.forEach((x) => {
-            this.data_result.push({
-              ticket_id: x.key,
-              ticket_name: x.fields.summary,
-              priority: x.fields.priority.name,
-              created_at: x.fields.created,
-              assignee: x.fields.assignee.displayName,
-              user_image: x.fields.assignee
-                ? x.fields.assignee.avatarUrls["48x48"]
-                : null,
-              due_date: x.fields.duedate || "-",
-              labels: x.fields.labels || "-",
-            });
-          });
-
-          console.log("DATA RESULT", this.data_result);
-        })
-        .catch((error) => {
-          console.log("ERROR", error);
-          this.is_loading = false;
-        })
-        .finally(() => {
-          this.is_loading = false;
+      try {
+        const response = await this.$http({
+          method: "GET",
+          url: `${api_url}&startAt=0&maxResults=50`,
+          headers: {
+            Authorization: authHeader,
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
         });
+
+        const total = response.data.total;
+        const totalPages = Math.ceil(total / maxResults);
+
+        // Use map to generate the promises for fetching each page
+        const pagePromises = Array.from({ length: totalPages }).map((_, i) => {
+          const startAt = i * maxResults;
+          return this.$http({
+            method: "GET",
+            url: `${api_url}&startAt=${startAt}&maxResults=${maxResults}`,
+            headers: {
+              Authorization: authHeader,
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+          }).then((pageResponse) => {
+            const data_from = pageResponse.data.issues;
+            totalIssues = totalIssues.concat(data_from);
+            console.log(`Fetched Page ${i + 1}:`, data_from);
+          });
+        });
+
+        await Promise.all(pagePromises);
+        this.data_result = totalIssues.map((x) => ({
+          ticket_id: x.key,
+          ticket_name: x.fields.summary,
+          priority: x.fields.priority.name,
+          created_at: x.fields.created,
+          assignee: x.fields.assignee.displayName,
+          user_image: x.fields.assignee
+            ? x.fields.assignee.avatarUrls["48x48"]
+            : null,
+          due_date: x.fields.duedate || "-",
+          labels: x.fields.labels || "-",
+        }));
+
+        console.log("NEW DATA", this.data_result);
+      } catch (error) {
+        console.error("Error in fetching data:", error);
+        this.is_loading = false;
+      } finally {
+        this.is_loading = false;
+      }
     },
   },
 

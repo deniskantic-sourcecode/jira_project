@@ -135,7 +135,6 @@ export default {
         "Basic " +
         btoa(process.env.VUE_APP_EMAIL + ":" + process.env.VUE_APP_API_KEY);
 
-      // Define the mapping between Jira status and your desired snake_case format
       const statusMapping = {
         Open: "open",
         "Work in progress": "work_in_progress",

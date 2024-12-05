@@ -152,111 +152,134 @@ export default {
 
       let maxResults = 50;
       let totalIssues = [];
-      let totalPages = Math.ceil(807 / maxResults);
 
-      let promises = [];
+      // Initial API request to get the total number of issues
+      this.$http({
+        method: "GET",
+        url: `${api_url}&startAt=0&maxResults=1`, // Only fetch 1 issue initially to get the total count
+        headers: {
+          Authorization: authHeader,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      })
+        .then((response) => {
+          const total = response.data.total; // Total number of issues
+          let totalPages = Math.ceil(total / maxResults); // Calculate total pages
 
-      for (let i = 0; i < totalPages; i++) {
-        let startAt = i * maxResults;
-        let pageRequest = this.$http({
-          method: "GET",
-          url: `${api_url}&startAt=${startAt}&maxResults=${maxResults}`,
-          headers: {
-            Authorization: authHeader,
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-        })
-          .then((response) => {
-            const data_from = response.data.issues;
-            totalIssues = totalIssues.concat(data_from);
-            console.log(`Fetched Page ${i + 1}:`, data_from);
-          })
-          .catch((error) => {
-            console.error(`Error fetching page ${i + 1}:`, error);
-          });
+          // Now we can fetch all the pages using pagination
+          let promises = [];
+          for (let i = 0; i < totalPages; i++) {
+            let startAt = i * maxResults;
+            let pageRequest = this.$http({
+              method: "GET",
+              url: `${api_url}&startAt=${startAt}&maxResults=${maxResults}`,
+              headers: {
+                Authorization: authHeader,
+                Accept: "application/json",
+                "Content-Type": "application/json",
+              },
+            })
+              .then((response) => {
+                const data_from = response.data.issues;
+                totalIssues = totalIssues.concat(data_from); // Concatenate results into the totalIssues array
+                console.log(`Fetched Page ${i + 1}:`, data_from);
+              })
+              .catch((error) => {
+                console.error(`Error fetching page ${i + 1}:`, error);
+              });
 
-        promises.push(pageRequest);
-      }
+            promises.push(pageRequest);
+          }
 
-      Promise.all(promises)
-        .then(() => {
-          if (this.error) return; // if error happens, stop all
-          console.log("All pages fetched successfully.");
+          // After all pages are fetched, process the data
+          Promise.all(promises)
+            .then(() => {
+              if (this.error) return; // if error happens, stop all
+              console.log("All pages fetched successfully.");
 
-          this.data_result = [];
+              this.data_result = [];
 
-          totalIssues.map((x) => {
-            this.data_result.push({
-              label: this.filtered_labels(x.fields.labels) || "-/-",
-              id: x.id,
-              key: x.key,
-              priority: x.fields.priority.name,
-              time_spent: x.fields.aggregatetimespent || 0,
-              status: x.fields.status.name,
+              // Process the fetched issues into the desired format
+              totalIssues.forEach((x) => {
+                this.data_result.push({
+                  label: this.filtered_labels(x.fields.labels) || "-/-",
+                  id: x.id,
+                  key: x.key,
+                  priority: x.fields.priority.name,
+                  time_spent: x.fields.aggregatetimespent || 0,
+                  status: x.fields.status.name,
+                });
+              });
+
+              console.log("NEW DATA", this.data_result);
+
+              this.new_result = [];
+              let aggregation = {};
+
+              // Aggregate the data by label
+              this.data_result.forEach((x) => {
+                if (!aggregation[x.label]) {
+                  aggregation[x.label] = {
+                    label: x.label,
+                    id: x.id,
+                    key: x.key,
+                    open: 0,
+                    priority_lowest: 0,
+                    priority_medium: 0,
+                    priority_high: 0,
+                    priority_highest: 0,
+                    done: 0,
+                    total_timestamp_open: 0,
+                    total_timestamp_done: 0,
+                  };
+                }
+
+                let label_data = aggregation[x.label];
+
+                if (
+                  x.status === "Open" ||
+                  x.status === "Waiting on client" ||
+                  x.status === "Waiting for support" ||
+                  x.status === "Ready for production"
+                ) {
+                  label_data.open += 1;
+                  label_data.total_timestamp_open += x.time_spent;
+                }
+
+                if (x.status === "Done") {
+                  label_data.done += 1;
+                  label_data.total_timestamp_done += x.time_spent;
+                }
+
+                if (x.priority === "Lowest") {
+                  label_data.priority_lowest += 1;
+                } else if (x.priority === "Medium") {
+                  label_data.priority_medium += 1;
+                } else if (x.priority === "High") {
+                  label_data.priority_high += 1;
+                } else if (x.priority === "Highest") {
+                  label_data.priority_highest += 1;
+                }
+              });
+
+              this.new_result = Object.values(aggregation);
+
+              console.log("AGGREGATED RESULT", this.new_result);
+            })
+            .catch((error) => {
+              console.error("Error in fetching or processing data:", error);
+              this.is_loading = false;
+              this.error = true;
+            })
+            .finally(() => {
+              this.is_loading = false;
             });
-          });
-
-          console.log("NEW DATA", this.data_result);
-
-          this.new_result = [];
-          let aggregation = {};
-
-          this.data_result.map((x) => {
-            if (!aggregation[x.label]) {
-              aggregation[x.label] = {
-                label: x.label,
-                id: x.id,
-                key: x.key,
-                open: 0,
-                priority_lowest: 0,
-                priority_medium: 0,
-                priority_high: 0,
-                priority_highest: 0,
-                done: 0,
-                total_timestamp_open: 0,
-                total_timestamp_done: 0,
-              };
-            }
-
-            let label_data = aggregation[x.label];
-
-            if (
-              x.status === "Open" ||
-              x.status === "Waiting on client" ||
-              x.status === "Waiting for support" ||
-              x.status === "Ready for production"
-            ) {
-              label_data.open += 1;
-              label_data.total_timestamp_open += x.time_spent;
-            }
-            if (x.status === "Done") {
-              label_data.done += 1;
-              label_data.total_timestamp_done += x.time_spent;
-            }
-
-            if (x.priority === "Lowest") {
-              label_data.priority_lowest += 1;
-            } else if (x.priority === "Medium") {
-              label_data.priority_medium += 1;
-            } else if (x.priority === "High") {
-              label_data.priority_high += 1;
-            } else if (x.priority === "Highest") {
-              label_data.priority_highest += 1;
-            }
-          });
-
-          this.new_result = Object.values(aggregation);
-
-          console.log("AGGREGATED RESULT", this.new_result);
         })
         .catch((error) => {
-          console.error("Error in fetching or processing data:", error);
+          console.error("Error fetching total count:", error);
           this.is_loading = false;
           this.error = true;
-        })
-        .finally(() => {
-          this.is_loading = false;
         });
     },
   },

@@ -128,22 +128,18 @@ export default {
           .then((response) => {
             const data_from = response.data.issues;
 
-            console.log("RESPOSNE", data_from);
+            console.log("RESPOSNE", data_from, "length:", data_from.length);
 
             data_from.forEach((x) => {
               const userId = x.fields.assignee
                 ? x.fields.assignee.displayName
                 : "Unassigned";
               const status = x.fields.status.name.trim();
-              const user_image = x.fields.assignee
-                ? x.fields.assignee.avatarUrls["48x48"]
-                : null;
 
               if (status !== "Done") {
                 if (!usersData[userId]) {
                   usersData[userId] = {
                     username: userId,
-                    avatar_url: user_image,
                     statusCounts: {},
                   };
                 }
@@ -187,8 +183,8 @@ export default {
         ),
       }));
 
-      this.option.yAxis.data = statusData.map((user) => user.name); // Set the Y axis labels (usernames)
-      this.option.series[0].data = statusData.map((user) => user.value); // Set the X axis data (ticket counts)
+      this.option.yAxis.data = statusData.map((user) => user.name); // Y axis
+      this.option.series[0].data = statusData.map((user) => user.value); // X axis
     },
   },
 

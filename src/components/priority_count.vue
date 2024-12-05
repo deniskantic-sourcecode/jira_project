@@ -74,7 +74,7 @@ export default {
         "http://localhost:8010/proxy/rest/api/2/search?jql=project=PI%20AND%20assignee%20IS%20NOT%20EMPTY%20AND%20status%20!=%20%22Done%22";
 
       let priorityCounts = {
-        Low: 0,
+        Lowest: 0,
         Medium: 0,
         High: 0,
         Highest: 0,
@@ -103,7 +103,7 @@ export default {
             data_from.forEach((x) => {
               const priority = x.fields.priority
                 ? x.fields.priority.name
-                : "Low";
+                : "Lowest";
 
               if (priorityCounts[priority] !== undefined) {
                 priorityCounts[priority] += 1;
@@ -139,15 +139,15 @@ export default {
     getPriorityColor(priority) {
       switch (priority) {
         case "Highest":
-          return { color: "#ff4d4f" }; // Strong Red
+          return { color: "#ff4d4f" };
         case "High":
-          return { color: "#ff7f7f" }; // Light Red
+          return { color: "#ff7f7f" };
         case "Medium":
-          return { color: "#ffb74d" }; // Orange
+          return { color: "#ffb74d" };
         case "Low":
-          return { color: "#66bb6a" }; // Green
+          return { color: "#66bb6a" };
         default:
-          return { color: "#66bb6a" }; // Default to green
+          return { color: "#66bb6a" };
       }
     },
   },
