@@ -6,25 +6,25 @@
       hide-delimiters
       :show-arrows="false"
       cycle
-      :interval="5000"
+      :interval="10000"
       height="100%"
     >
       <!-- Carousel item also fills the available space -->
       <!-- <v-carousel-item>
         <component :is="task_list" />
-      </v-carousel-item> -->
+      </v-carousel-item>
 
       <v-carousel-item>
         <component :is="userList" />
       </v-carousel-item>
 
-      <!-- <v-carousel-item>
+      <v-carousel-item>
         <component :is="ticket_labels" />
       </v-carousel-item> -->
 
-      <!-- <v-carousel-item>
+      <v-carousel-item>
         <component :is="users_ticket_bar" />
-      </v-carousel-item> -->
+      </v-carousel-item>
 
       <!-- <v-carousel-item>
         <component :is="prirority_count" />

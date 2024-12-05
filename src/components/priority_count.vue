@@ -3,10 +3,7 @@
     class="d-flex justify-center items-center"
     style="height: 100vh; width: 100%"
   >
-    <v-chart
-      :option="option"
-      style="height: 100%; width: 100%; padding-top: 5rem"
-    ></v-chart>
+    <v-chart :option="option" style="height: 100%; width: 100"></v-chart>
   </div>
 </template>
 
@@ -21,21 +18,31 @@ export default {
   data() {
     return {
       option: {
+        backgroundColor: "#0096a9",
         title: {
           text: "Tickets by Priority",
           subtext: "Total Count by Priority",
           left: "center",
-          fontSize: 20,
-        },
-        tooltip: {
-          trigger: "item",
-          formatter: "{a} <br/>{b}: {c} ({d}%)",
+          top: "5%",
+          textStyle: {
+            color: "#ffffff",
+            fontSize: 25,
+          },
+          subtextStyle: {
+            color: "#fff",
+            fontSize: 15,
+          },
         },
         legend: {
           orient: "horizontal",
-          bottom: "10%",
+          bottom: "5%",
           left: "center",
+          itemGap: 20,
           data: ["Low", "Medium", "High", "Highest"],
+          textStyle: {
+            fontSize: 16,
+            color: "#ffffff",
+          },
         },
         series: [
           {
@@ -44,16 +51,21 @@ export default {
             radius: "70%",
             data: [],
             label: {
-              fontSize: 14,
+              color: "#ffffff",
+              fontSize: 30,
               formatter: "{b}: {c} ({d}%)",
             },
             itemStyle: {
               borderRadius: 10,
               borderColor: "#fff",
-              borderWidth: 2,
+              borderWidth: 1,
             },
+            top: "10%",
           },
-        ],
+        ].sort(function (a, b) {
+          return a.value - b.value;
+        }),
+        roseType: "radius",
       },
       is_loading: false,
     };
@@ -107,16 +119,14 @@ export default {
               startAt += maxResults;
               fetchData();
             } else {
-              // Set up the chart data with colors
               const pieData = Object.keys(priorityCounts).map((priority) => ({
                 name: priority,
-                value: priorityCounts[priority],
+                value: priorityCounts[priority] || "",
                 itemStyle: this.getPriorityColor(priority),
               }));
 
               this.option.series[0].data = pieData;
 
-              // Set the legend data dynamically based on priorityCounts
               this.option.legend.data = Object.keys(priorityCounts);
 
               this.is_loading = false;

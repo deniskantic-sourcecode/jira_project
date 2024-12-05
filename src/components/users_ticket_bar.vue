@@ -23,7 +23,7 @@
 
     <v-chart
       :option="option"
-      style="height: 100%; width: 100%; padding-top: 3rem"
+      style="height: 100%; width: 95%; padding-top: 3rem; margin: auto"
     ></v-chart>
   </div>
 </template>
@@ -44,9 +44,6 @@ export default {
           subtext: "PI Board",
           left: "center",
           fontSize: 20,
-        },
-        tooltip: {
-          trigger: "item",
         },
         xAxis: {
           type: "value",
@@ -131,16 +128,22 @@ export default {
           .then((response) => {
             const data_from = response.data.issues;
 
+            console.log("RESPOSNE", data_from);
+
             data_from.forEach((x) => {
               const userId = x.fields.assignee
                 ? x.fields.assignee.displayName
                 : "Unassigned";
               const status = x.fields.status.name.trim();
+              const user_image = x.fields.assignee
+                ? x.fields.assignee.avatarUrls["48x48"]
+                : null;
 
               if (status !== "Done") {
                 if (!usersData[userId]) {
                   usersData[userId] = {
                     username: userId,
+                    avatar_url: user_image,
                     statusCounts: {},
                   };
                 }
@@ -155,6 +158,7 @@ export default {
 
             if (data_from.length === maxResults) {
               startAt += maxResults;
+              maxResults += startAt;
               fetchData();
             } else {
               this.usersStats = Object.values(usersData);
