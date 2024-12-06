@@ -156,7 +156,7 @@ export default {
       // Initial API request to get the total number of issues
       this.$http({
         method: "GET",
-        url: `${api_url}&startAt=0&maxResults=1`, // Only fetch 1 issue initially to get the total count
+        url: `${api_url}&startAt=0&maxResults=1`,
         headers: {
           Authorization: authHeader,
           Accept: "application/json",
@@ -164,10 +164,8 @@ export default {
         },
       })
         .then((response) => {
-          const total = response.data.total; // Total number of issues
-          let totalPages = Math.ceil(total / maxResults); // Calculate total pages
-
-          // Now we can fetch all the pages using pagination
+          const total = response.data.total;
+          let totalPages = Math.ceil(total / maxResults);
           let promises = [];
           for (let i = 0; i < totalPages; i++) {
             let startAt = i * maxResults;
@@ -182,7 +180,7 @@ export default {
             })
               .then((response) => {
                 const data_from = response.data.issues;
-                totalIssues = totalIssues.concat(data_from); // Concatenate results into the totalIssues array
+                totalIssues = totalIssues.concat(data_from);
                 console.log(`Fetched Page ${i + 1}:`, data_from);
               })
               .catch((error) => {
@@ -192,15 +190,13 @@ export default {
             promises.push(pageRequest);
           }
 
-          // After all pages are fetched, process the data
           Promise.all(promises)
             .then(() => {
-              if (this.error) return; // if error happens, stop all
+              if (this.error) return;
               console.log("All pages fetched successfully.");
 
               this.data_result = [];
 
-              // Process the fetched issues into the desired format
               totalIssues.forEach((x) => {
                 this.data_result.push({
                   label: this.filtered_labels(x.fields.labels) || "-/-",
@@ -217,7 +213,9 @@ export default {
               this.new_result = [];
               let aggregation = {};
 
-              // Aggregate the data by label
+              //Podijeliti ekran na dva dijela, gornji dio prikazuje stack chart sa brojem tiketa podijeljen na open i done broj tiketa, uzeti TOP 5 sa najvi[e tiketa ili koliko stane.
+              //Drugi dio ekrana napraviti po time spent, isto stack chart po open i done tiketima
+
               this.data_result.forEach((x) => {
                 if (!aggregation[x.label]) {
                   aggregation[x.label] = {

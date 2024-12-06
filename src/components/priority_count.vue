@@ -1,9 +1,80 @@
 <template>
   <div
     class="d-flex justify-center items-center"
-    style="height: 100vh; width: 100%"
+    style="
+      display: grid;
+      height: 100vh;
+      width: 100%;
+      grid-template-rows: 65vh 35vh;
+      grid-template-columns: 1fr;
+    "
   >
-    <v-chart :option="option" style="height: 100%; width: 100"></v-chart>
+    <div
+      v-if="is_loading"
+      style="
+        display: flex;
+        justify-content: center;
+        flex-direction: column;
+        align-items: center;
+        height: 100%;
+      "
+    >
+      <v-progress-circular
+        :size="100"
+        color="primary"
+        indeterminate
+      ></v-progress-circular>
+      Loading...
+    </div>
+
+    <div
+      v-if="!is_loading"
+      style="display: grid; grid-template-columns: 1fr 1fr; height: 100%"
+    >
+      <v-chart :option="option" style="height: 100%; width: 100%"></v-chart>
+      <div>
+        <v-chart
+          :option="stacked_bar"
+          style="height: 100%; width: 100%"
+        ></v-chart>
+      </div>
+    </div>
+
+    <div
+      v-if="!is_loading"
+      style="width: 100%; height: 100%; background-color: lightblue"
+    >
+      <v-data-table
+        :headers="headers"
+        :items="table_data"
+        item-key="ticket_id"
+        class="elevation-1"
+      >
+        <!-- Table Header -->
+        <template v-slot:top>
+          <v-toolbar flat>
+            <v-toolbar-title>Ticket Data</v-toolbar-title>
+            <v-spacer></v-spacer>
+          </v-toolbar>
+        </template>
+
+        <!-- Scoped Slot for each item -->
+        <template v-slot:item="{ item }">
+          <tr>
+            <!-- Ticket ID -->
+            <td>{{ item.ticket_id }}</td>
+            <!-- Labels (joined into a single string) -->
+            <td>{{ item.ticket_label.join(", ") }}</td>
+            <!-- Created At (formatted) -->
+            <td>{{ item.created_at }}</td>
+            <!-- Priority -->
+            <td>{{ item.priority }}</td>
+            <!-- Status -->
+            <td>{{ item.status }}</td>
+          </tr>
+        </template>
+      </v-data-table>
+    </div>
   </div>
 </template>
 
@@ -17,6 +88,37 @@ export default {
   },
   data() {
     return {
+      headers: [
+        { text: "Ticket ID", align: "start", key: "ticket_id" },
+        { text: "Labels", align: "start", key: "ticket_label" },
+        { text: "Created At", align: "start", key: "created_at" },
+        { text: "Priority", align: "start", key: "priority" },
+        { text: "Status", align: "start", key: "status" },
+      ],
+      stacked_bar: {
+        tooltip: {
+          trigger: "axis",
+          axisPointer: {
+            // Use axis to trigger tooltip
+            type: "shadow", // 'shadow' as default; can also be 'line' or 'shadow'
+          },
+        },
+        legend: {},
+        grid: {
+          left: "3%",
+          right: "4%",
+          bottom: "3%",
+          containLabel: true,
+        },
+        xAxis: {
+          type: "value",
+        },
+        yAxis: {
+          type: "category",
+          data: ["Low", "Medium", "High", "Highest"],
+        },
+        series: [],
+      },
       option: {
         backgroundColor: "#ffffff",
         title: {
@@ -52,7 +154,7 @@ export default {
             data: [],
             label: {
               color: "#0096a9",
-              fontSize: 30,
+              fontSize: 20,
               formatter: "{b}: {c} ({d}%)",
             },
             top: "10%",
@@ -63,6 +165,7 @@ export default {
         roseType: "radius",
       },
       is_loading: false,
+      table_data: [],
     };
   },
 
@@ -73,11 +176,45 @@ export default {
       const api_url =
         "http://localhost:8010/proxy/rest/api/2/search?jql=project=PI%20AND%20assignee%20IS%20NOT%20EMPTY%20AND%20status%20!=%20%22Done%22";
 
+      // Updated object to store counts by priority and status
       let priorityCounts = {
-        Lowest: 0,
-        Medium: 0,
-        High: 0,
-        Highest: 0,
+        Lowest: {
+          total: 0,
+          statuses: {
+            "In Progress": 0,
+            "To Do": 0,
+            "At Risk": 0,
+            "In Testing": 0,
+          },
+        },
+
+        Medium: {
+          total: 0,
+          statuses: {
+            "In Progress": 0,
+            "To Do": 0,
+            "At Risk": 0,
+            "In Testing": 0,
+          },
+        },
+        High: {
+          total: 0,
+          statuses: {
+            "In Progress": 0,
+            "To Do": 0,
+            "At Risk": 0,
+            "In Testing": 0,
+          },
+        },
+        Highest: {
+          total: 0,
+          statuses: {
+            "In Progress": 0,
+            "To Do": 0,
+            "At Risk": 0,
+            "In Testing": 0,
+          },
+        },
       };
 
       const authHeader =
@@ -103,25 +240,79 @@ export default {
             data_from.forEach((x) => {
               const priority = x.fields.priority
                 ? x.fields.priority.name
-                : "Lowest";
+                : "Unknown";
+              const status = x.fields.status
+                ? x.fields.status.statusCategory.name
+                : "Unknown";
 
-              if (priorityCounts[priority] !== undefined) {
-                priorityCounts[priority] += 1;
+              this.table_data.push({
+                ticket_id: x.key,
+                ticket_label: x.fields.labels,
+                created_at: x.fields.created,
+                priority: priority,
+                status: status,
+              });
+
+              if (priorityCounts[priority]) {
+                priorityCounts[priority].total += 1;
+              }
+
+              if (
+                priorityCounts[priority] &&
+                priorityCounts[priority].statuses[status] !== undefined
+              ) {
+                priorityCounts[priority].statuses[status] += 1;
               }
             });
 
+            console.log("Updated priority counts:", priorityCounts);
+
             if (data_from.length === maxResults) {
               startAt += maxResults;
+              maxResults += startAt;
               fetchData();
             } else {
+              this.is_loading = false;
+
+              let seriesData = [];
+              let yAxisData = ["Lowest", "Medium", "High", "Highest"];
+
+              Object.keys(priorityCounts).forEach((priority) => {
+                const statusData = priorityCounts[priority].statuses;
+
+                seriesData.push({
+                  name: priority,
+                  type: "bar",
+                  stack: "total",
+                  label: { show: true },
+                  emphasis: { focus: "series" },
+                  data: [
+                    statusData["To Do"] || 0,
+                    statusData["In Progress"] || 0,
+                    statusData["At Risk"] || 0,
+                    statusData["In Testing"] || 0,
+                  ],
+                });
+              });
+
+              console.log(
+                "tHIS DATA",
+                this.table_data.map((x) => {
+                  return x;
+                })
+              );
+
+              this.stacked_bar.series = seriesData;
+
+              this.stacked_bar.yAxis.data = yAxisData;
+
               const pieData = Object.keys(priorityCounts).map((priority) => ({
                 name: priority,
-                value: priorityCounts[priority] || "",
+                value: priorityCounts[priority].total || 0,
                 itemStyle: this.getPriorityColor(priority),
               }));
 
               this.option.series[0].data = pieData;
-
               this.option.legend.data = Object.keys(priorityCounts);
 
               this.is_loading = false;

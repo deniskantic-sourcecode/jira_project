@@ -129,7 +129,7 @@ export default {
             const data_from = response.data.issues;
 
             console.log("RESPOSNE", data_from, "length:", data_from.length);
-
+            //Total utrosenog vremena za danasnji datum po korisniku
             data_from.forEach((x) => {
               const userId = x.fields.assignee
                 ? x.fields.assignee.displayName

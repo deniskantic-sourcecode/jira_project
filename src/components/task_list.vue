@@ -90,7 +90,7 @@ export default {
       let result = "";
       const first_date = new Date(start_date);
       const current_date = new Date();
-
+      //zamijeniti petlju
       this.data_result.map((x) => {
         if (x.due_date !== "-") {
           if (current_date > first_date) {
@@ -150,7 +150,6 @@ export default {
         const total = response.data.total;
         const totalPages = Math.ceil(total / maxResults);
 
-        // Use map to generate the promises for fetching each page
         const pagePromises = Array.from({ length: totalPages }).map((_, i) => {
           const startAt = i * maxResults;
           return this.$http({
