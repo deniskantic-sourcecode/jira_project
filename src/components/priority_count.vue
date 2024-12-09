@@ -5,7 +5,7 @@
       display: grid;
       height: 100vh;
       width: 100%;
-      grid-template-rows: 65vh 35vh;
+      grid-template-rows: 60vh 40vh;
       grid-template-columns: 1fr;
     "
   >
@@ -90,9 +90,6 @@ export default {
       stacked_bar: {
         tooltip: {
           trigger: "axis",
-          axisPointer: {
-            type: "shadow", // Use axis to trigger tooltip
-          },
         },
         legend: {
           bottom: 0,
@@ -166,8 +163,8 @@ export default {
     async get_data() {
       this.is_loading = true;
 
-      const api_url =
-        "http://localhost:8010/proxy/rest/api/2/search?jql=project%20%3D%20PI%20AND%20assignee%20IS%20NOT%20EMPTY%20AND%20status%20%21%3D%20%22Done%22";
+      const api_url = "http://localhost:8010/proxy/rest/api/2/search";
+
       const authHeader =
         "Basic " +
         btoa(process.env.VUE_APP_EMAIL + ":" + process.env.VUE_APP_API_KEY);
@@ -181,25 +178,35 @@ export default {
         Highest: { total: 0, statuses: { "In Progress": 0, "To Do": 0 } },
       };
 
+      const jql = "project = PI AND assignee IS NOT EMPTY AND status != 'Done'";
+
+      const params = {
+        jql: jql,
+        maxResults: maxResults,
+        startAt: 0,
+      };
+
       try {
         const initialResponse = await this.$http({
           method: "GET",
-          url: `${api_url}&startAt=0&maxResults=${maxResults}`,
+          url: api_url,
           headers: {
             Authorization: authHeader,
             Accept: "application/json",
             "Content-Type": "application/json",
           },
+          params: params,
         });
 
         const total = initialResponse.data.total;
         const totalPages = Math.ceil(total / maxResults);
 
         const pagePromises = Array.from({ length: totalPages }).map((_, i) => {
-          const startAt = i * maxResults;
+          params.startAt = i * maxResults;
           return this.$http({
             method: "GET",
-            url: `${api_url}&startAt=${startAt}&maxResults=${maxResults}`,
+            url: api_url,
+            params: params,
             headers: {
               Authorization: authHeader,
               Accept: "application/json",
@@ -254,8 +261,6 @@ export default {
     updateCharts(priority_counts) {
       let series_data = [];
       let yAxisData = ["Lowest", "Medium", "High", "Highest"];
-
-      console.log("PRIORITY", Object.keys(priority_counts));
 
       let lowest_in_progress = priority_counts.Lowest.statuses["In Progress"];
       let lowest_to_do = priority_counts.Lowest.statuses["To Do"];

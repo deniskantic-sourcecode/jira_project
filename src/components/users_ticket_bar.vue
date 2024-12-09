@@ -101,90 +101,124 @@ export default {
   },
 
   methods: {
-    get_data() {
+    async get_data() {
       this.is_loading = true;
 
-      const api_url =
-        "http://localhost:8010/proxy/rest/api/2/search?jql=project=PI%20AND%20assignee%20IS%20NOT%20EMPTY%20AND%20status%20!=%20%22Done%22";
+      const baseUrl = "http://localhost:8010/proxy/rest/api/2/search";
+      const jql = "project = PI AND assignee IS NOT EMPTY AND status != 'Done'";
 
-      let usersData = {};
       const authHeader =
         "Basic " +
         btoa(process.env.VUE_APP_EMAIL + ":" + process.env.VUE_APP_API_KEY);
 
-      let startAt = 0;
-      let maxResults = 50;
+      const maxResults = 50;
+      let totalIssues = [];
+      let usersData = {};
 
-      const fetchData = () => {
-        this.$http({
+      const params = {
+        jql: jql,
+        maxResults: maxResults,
+        startAt: 0,
+      };
+
+      try {
+        const initialResponse = await this.$http({
           method: "GET",
-          url: `${api_url}&startAt=${startAt}&maxResults=${maxResults}`,
+          url: baseUrl,
           headers: {
             Authorization: authHeader,
             Accept: "application/json",
             "Content-Type": "application/json",
           },
-        })
-          .then((response) => {
-            const data_from = response.data.issues;
+          params: params,
+        });
 
-            console.log("RESPOSNE", data_from, "length:", data_from.length);
-            //Total utrosenog vremena za danasnji datum po korisniku
-            data_from.forEach((x) => {
-              const userId = x.fields.assignee
-                ? x.fields.assignee.displayName
-                : "Unassigned";
-              const status = x.fields.status.name.trim();
+        const total = initialResponse.data.total;
+        const totalPages = Math.ceil(total / maxResults);
 
-              if (status !== "Done") {
-                if (!usersData[userId]) {
-                  usersData[userId] = {
-                    username: userId,
-                    statusCounts: {},
-                  };
-                }
-
-                if (!usersData[userId].statusCounts[status]) {
-                  usersData[userId].statusCounts[status] = 0;
-                }
-
-                usersData[userId].statusCounts[status] += 1;
-              }
-            });
-
-            if (data_from.length === maxResults) {
-              startAt += maxResults;
-              maxResults += startAt;
-              fetchData();
-            } else {
-              this.usersStats = Object.values(usersData);
-              this.initialize_chart();
-              this.is_loading = false;
-            }
-          })
-          .catch((error) => {
-            console.log("ERROR", error);
-            this.is_loading = false;
+        const pagePromises = Array.from({ length: totalPages }).map((_, i) => {
+          params.startAt = i * maxResults;
+          return this.$http({
+            method: "GET",
+            url: baseUrl,
+            headers: {
+              Authorization: authHeader,
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+            params: params,
+          }).then((pageResponse) => {
+            const data_from = pageResponse.data.issues;
+            totalIssues = totalIssues.concat(data_from);
+            console.log(`Fetched Page ${i + 1}:`, data_from);
           });
-      };
+        });
 
-      fetchData();
+        await Promise.all(pagePromises);
+
+        this.table_data = totalIssues.map((x) => {
+          const priority = x.fields.priority
+            ? x.fields.priority.name
+            : "Unknown";
+          const status = x.fields.status
+            ? x.fields.status.statusCategory.name
+            : "-";
+          const userId = x.fields.assignee
+            ? x.fields.assignee.displayName
+            : "Unassigned";
+
+          if (!usersData[userId]) {
+            usersData[userId] = {
+              username: userId,
+              statusCounts: { "In Progress": 0, "To Do": 0 },
+              timeLoggedToday: 0,
+            };
+          }
+
+          if (usersData[userId].statusCounts[status] !== undefined) {
+            usersData[userId].statusCounts[status] += 1;
+          }
+
+          const worklogs = x.fields.worklog ? x.fields.worklog.worklogs : [];
+          const todayDate = new Date().toISOString().split("T")[0];
+          worklogs.forEach((log) => {
+            const logDate = new Date(log.started).toISOString().split("T")[0];
+            if (logDate === todayDate) {
+              usersData[userId].timeLoggedToday += log.timeSpentSeconds || 0;
+            }
+          });
+
+          return {
+            ticket_id: x.key,
+            ticket_label: x.fields.labels,
+            created_at: x.fields.created,
+            priority: priority,
+            status: status,
+          };
+        });
+
+        console.log("Fetched Data:", this.table_data);
+
+        this.updateCharts(usersData);
+      } catch (error) {
+        console.error("Error in fetching data:", error);
+      } finally {
+        this.is_loading = false;
+      }
     },
 
-    initialize_chart() {
-      if (!this.usersStats || this.usersStats.length === 0) {
-        return;
-      }
-      const statusData = this.usersStats.map((user) => ({
+    updateCharts(usersData) {
+      const statusData = Object.values(usersData).map((user) => ({
         name: user.username,
         value: Object.values(user.statusCounts).reduce(
           (acc, count) => acc + count,
           0
         ),
+        timeLoggedToday: user.timeLoggedToday,
       }));
 
-      this.option.yAxis.data = statusData.map((user) => user.name); // Y axis
-      this.option.series[0].data = statusData.map((user) => user.value); // X axis
+      this.option.yAxis.data = statusData.map((user) => user.name);
+      this.option.series[0].data = statusData.map((user) => user.value);
     },
   },
 
