@@ -47,7 +47,7 @@ export default {
         },
         xAxis: {
           type: "value",
-          max: 35,
+          max: 50,
           interval: 5,
           axisLabel: {
             fontSize: 16,
