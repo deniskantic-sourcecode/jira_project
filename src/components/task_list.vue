@@ -91,16 +91,14 @@ export default {
       const first_date = new Date(start_date);
       const current_date = new Date();
       //zamijeniti petlju
-      this.data_result.map((x) => {
-        if (x.due_date !== "-") {
-          if (current_date > first_date) {
-            this.is_overdue = true;
-            return (result = "Overdue");
-          } else {
-            return (result = "-");
-          }
+      if (start_date !== "-") {
+        if (current_date > first_date) {
+          this.is_overdue = true;
+          return (result = "Overdue");
+        } else {
+          return (result = "-");
         }
-      });
+      }
       return result;
     },
     format_date(date_string) {

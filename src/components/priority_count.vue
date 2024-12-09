@@ -50,7 +50,6 @@
         item-key="ticket_id"
         class="elevation-1"
       >
-        <!-- Table Header -->
         <template v-slot:top>
           <v-toolbar flat>
             <v-toolbar-title>Ticket Data</v-toolbar-title>
@@ -58,18 +57,12 @@
           </v-toolbar>
         </template>
 
-        <!-- Scoped Slot for each item -->
         <template v-slot:item="{ item }">
           <tr>
-            <!-- Ticket ID -->
             <td>{{ item.ticket_id }}</td>
-            <!-- Labels (joined into a single string) -->
             <td>{{ item.ticket_label.join(", ") }}</td>
-            <!-- Created At (formatted) -->
             <td>{{ item.created_at }}</td>
-            <!-- Priority -->
             <td>{{ item.priority }}</td>
-            <!-- Status -->
             <td>{{ item.status }}</td>
           </tr>
         </template>
@@ -77,7 +70,6 @@
     </div>
   </div>
 </template>
-
 <script>
 import VChart from "vue-echarts";
 import "echarts";
@@ -99,11 +91,12 @@ export default {
         tooltip: {
           trigger: "axis",
           axisPointer: {
-            // Use axis to trigger tooltip
-            type: "shadow", // 'shadow' as default; can also be 'line' or 'shadow'
+            type: "shadow", // Use axis to trigger tooltip
           },
         },
-        legend: {},
+        legend: {
+          bottom: 0,
+        },
         grid: {
           left: "3%",
           right: "4%",
@@ -115,7 +108,6 @@ export default {
         },
         yAxis: {
           type: "category",
-          data: ["Low", "Medium", "High", "Highest"],
         },
         series: [],
       },
@@ -159,172 +151,163 @@ export default {
             },
             top: "10%",
           },
-        ].sort(function (a, b) {
-          return a.value - b.value;
-        }),
+        ],
         roseType: "radius",
       },
       is_loading: false,
       table_data: [],
+      startAt: 0,
+      maxResults: 50,
+      total_count: 0,
     };
   },
 
   methods: {
-    get_data() {
+    async get_data() {
       this.is_loading = true;
 
       const api_url =
-        "http://localhost:8010/proxy/rest/api/2/search?jql=project=PI%20AND%20assignee%20IS%20NOT%20EMPTY%20AND%20status%20!=%20%22Done%22";
-
-      // Updated object to store counts by priority and status
-      let priorityCounts = {
-        Lowest: {
-          total: 0,
-          statuses: {
-            "In Progress": 0,
-            "To Do": 0,
-            "At Risk": 0,
-            "In Testing": 0,
-          },
-        },
-
-        Medium: {
-          total: 0,
-          statuses: {
-            "In Progress": 0,
-            "To Do": 0,
-            "At Risk": 0,
-            "In Testing": 0,
-          },
-        },
-        High: {
-          total: 0,
-          statuses: {
-            "In Progress": 0,
-            "To Do": 0,
-            "At Risk": 0,
-            "In Testing": 0,
-          },
-        },
-        Highest: {
-          total: 0,
-          statuses: {
-            "In Progress": 0,
-            "To Do": 0,
-            "At Risk": 0,
-            "In Testing": 0,
-          },
-        },
-      };
-
+        "http://localhost:8010/proxy/rest/api/2/search?jql=project%20%3D%20PI%20AND%20assignee%20IS%20NOT%20EMPTY%20AND%20status%20%21%3D%20%22Done%22";
       const authHeader =
         "Basic " +
         btoa(process.env.VUE_APP_EMAIL + ":" + process.env.VUE_APP_API_KEY);
 
-      let startAt = 0;
-      let maxResults = 50;
+      const maxResults = 50;
+      let totalIssues = [];
+      let priorityCounts = {
+        Lowest: { total: 0, statuses: { "In Progress": 0, "To Do": 0 } },
+        Medium: { total: 0, statuses: { "In Progress": 0, "To Do": 0 } },
+        High: { total: 0, statuses: { "In Progress": 0, "To Do": 0 } },
+        Highest: { total: 0, statuses: { "In Progress": 0, "To Do": 0 } },
+      };
 
-      const fetchData = () => {
-        this.$http({
+      try {
+        const initialResponse = await this.$http({
           method: "GET",
-          url: `${api_url}&startAt=${startAt}&maxResults=${maxResults}`,
+          url: `${api_url}&startAt=0&maxResults=${maxResults}`,
           headers: {
             Authorization: authHeader,
             Accept: "application/json",
             "Content-Type": "application/json",
           },
-        })
-          .then((response) => {
-            const data_from = response.data.issues;
+        });
 
-            data_from.forEach((x) => {
-              const priority = x.fields.priority
-                ? x.fields.priority.name
-                : "Unknown";
-              const status = x.fields.status
-                ? x.fields.status.statusCategory.name
-                : "Unknown";
+        const total = initialResponse.data.total;
+        const totalPages = Math.ceil(total / maxResults);
 
-              this.table_data.push({
-                ticket_id: x.key,
-                ticket_label: x.fields.labels,
-                created_at: x.fields.created,
-                priority: priority,
-                status: status,
-              });
-
-              if (priorityCounts[priority]) {
-                priorityCounts[priority].total += 1;
-              }
-
-              if (
-                priorityCounts[priority] &&
-                priorityCounts[priority].statuses[status] !== undefined
-              ) {
-                priorityCounts[priority].statuses[status] += 1;
-              }
-            });
-
-            console.log("Updated priority counts:", priorityCounts);
-
-            if (data_from.length === maxResults) {
-              startAt += maxResults;
-              maxResults += startAt;
-              fetchData();
-            } else {
-              this.is_loading = false;
-
-              let seriesData = [];
-              let yAxisData = ["Lowest", "Medium", "High", "Highest"];
-
-              Object.keys(priorityCounts).forEach((priority) => {
-                const statusData = priorityCounts[priority].statuses;
-
-                seriesData.push({
-                  name: priority,
-                  type: "bar",
-                  stack: "total",
-                  label: { show: true },
-                  emphasis: { focus: "series" },
-                  data: [
-                    statusData["To Do"] || 0,
-                    statusData["In Progress"] || 0,
-                    statusData["At Risk"] || 0,
-                    statusData["In Testing"] || 0,
-                  ],
-                });
-              });
-
-              console.log(
-                "tHIS DATA",
-                this.table_data.map((x) => {
-                  return x;
-                })
-              );
-
-              this.stacked_bar.series = seriesData;
-
-              this.stacked_bar.yAxis.data = yAxisData;
-
-              const pieData = Object.keys(priorityCounts).map((priority) => ({
-                name: priority,
-                value: priorityCounts[priority].total || 0,
-                itemStyle: this.getPriorityColor(priority),
-              }));
-
-              this.option.series[0].data = pieData;
-              this.option.legend.data = Object.keys(priorityCounts);
-
-              this.is_loading = false;
-            }
-          })
-          .catch((error) => {
-            console.log("ERROR", error);
-            this.is_loading = false;
+        const pagePromises = Array.from({ length: totalPages }).map((_, i) => {
+          const startAt = i * maxResults;
+          return this.$http({
+            method: "GET",
+            url: `${api_url}&startAt=${startAt}&maxResults=${maxResults}`,
+            headers: {
+              Authorization: authHeader,
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+          }).then((pageResponse) => {
+            const data_from = pageResponse.data.issues;
+            totalIssues = totalIssues.concat(data_from);
+            console.log(`Fetched Page ${i + 1}:`, data_from);
           });
-      };
+        });
 
-      fetchData();
+        await Promise.all(pagePromises);
+
+        this.table_data = totalIssues.map((x) => {
+          const priority = x.fields.priority
+            ? x.fields.priority.name
+            : "Unknown";
+          const status = x.fields.status
+            ? x.fields.status.statusCategory.name
+            : "-";
+
+          if (priorityCounts[priority]) {
+            priorityCounts[priority].total += 1;
+          }
+          if (
+            priorityCounts[priority] &&
+            priorityCounts[priority].statuses[status] !== undefined
+          ) {
+            priorityCounts[priority].statuses[status] += 1;
+          }
+
+          return {
+            ticket_id: x.key,
+            ticket_label: x.fields.labels,
+            created_at: x.fields.created,
+            priority: priority,
+            status: status,
+          };
+        });
+
+        console.log("Fetched Data:", this.table_data);
+
+        this.updateCharts(priorityCounts);
+      } catch (error) {
+        console.error("Error in fetching data:", error);
+      } finally {
+        this.is_loading = false;
+      }
+    },
+
+    updateCharts(priority_counts) {
+      let series_data = [];
+      let yAxisData = ["Lowest", "Medium", "High", "Highest"];
+
+      console.log("PRIORITY", Object.keys(priority_counts));
+
+      let lowest_in_progress = priority_counts.Lowest.statuses["In Progress"];
+      let lowest_to_do = priority_counts.Lowest.statuses["To Do"];
+
+      let medium_in_progress = priority_counts.Medium.statuses["In Progress"];
+      let medium_to_do = priority_counts.Medium.statuses["To Do"];
+
+      let high_in_progress = priority_counts.High.statuses["In Progress"];
+      let high_to_do = priority_counts.High.statuses["To Do"];
+
+      let highest_in_progress = priority_counts.Highest.statuses["In Progress"];
+      let highest_to_do = priority_counts.Highest.statuses["To Do"];
+
+      series_data.push({
+        name: "To Do",
+        type: "bar",
+        stack: "total",
+        label: { show: true },
+        emphasis: { focus: "series" },
+        data: [
+          lowest_to_do || 0,
+          medium_to_do || 0,
+          high_to_do || 0,
+          highest_to_do || 0,
+        ],
+      });
+
+      series_data.push({
+        name: "In Progress",
+        type: "bar",
+        stack: "total",
+        label: { show: true },
+        emphasis: { focus: "series" },
+        data: [
+          lowest_in_progress || 0,
+          medium_in_progress || 0,
+          high_in_progress || 0,
+          highest_in_progress || 0,
+        ],
+      });
+
+      this.stacked_bar.series = series_data;
+      this.stacked_bar.yAxis.data = yAxisData;
+
+      const pieData = Object.keys(priority_counts).map((priority) => ({
+        name: priority,
+        value: priority_counts[priority].total || 0,
+        itemStyle: this.getPriorityColor(priority),
+      }));
+
+      this.option.series[0].data = pieData;
+      this.option.legend.data = Object.keys(priority_counts);
     },
 
     getPriorityColor(priority) {
@@ -335,7 +318,7 @@ export default {
           return { color: "#ff7f7f" };
         case "Medium":
           return { color: "#ffb74d" };
-        case "Low":
+        case "Lowest":
           return { color: "#66bb6a" };
         default:
           return { color: "#66bb6a" };
