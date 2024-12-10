@@ -40,24 +40,29 @@ export default {
     return {
       option: {
         title: {
-          text: "Total assigned tickets by users",
+          text: "Tickets and Time Spent by Users",
           subtext: "PI Board",
           left: "center",
           fontSize: 20,
         },
+        legend: {
+          data: ["Tickets", "Time Spent (hrs : min)"],
+          top: "5%",
+        },
         xAxis: {
           type: "value",
+          name: "Count / Time",
           max: 50,
           interval: 10,
           axisLabel: {
-            fontSize: 20,
+            fontSize: 14,
             formatter: "{value}",
           },
         },
         yAxis: {
           type: "category",
           axisLabel: {
-            fontSize: 20,
+            fontSize: 14,
             padding: [0, 10],
             color: "#333",
           },
@@ -67,31 +72,33 @@ export default {
           {
             name: "Tickets",
             type: "bar",
-            data: [],
+            stack: "total",
             label: {
               show: true,
               position: "inside",
               formatter: "{c}",
-              color: "#fff",
-              fontSize: 40,
+              color: "#000000",
+              fontSize: 12,
             },
             itemStyle: {
-              color: (params) => {
-                const colorArray = [
-                  "#4caf50",
-                  "#ff9800",
-                  "#2196f3",
-                  "#9c27b0",
-                  "#e91e63",
-                  "#00bcd4",
-                  "#8bc34a",
-                  "#ff5722",
-                  "#795548",
-                  "#607d8b",
-                ];
-                return colorArray[params.dataIndex % colorArray.length];
-              },
+              color: "#4caf50",
             },
+            data: [],
+          },
+          {
+            name: "Time Spent (hrs : min)",
+            type: "bar",
+            label: {
+              show: true,
+              position: "inside",
+              formatter: (params) => this.convertSecondsToTime(params.value),
+              color: "#000000",
+              fontSize: 12,
+            },
+            itemStyle: {
+              color: "#ff9800",
+            },
+            data: [],
           },
         ],
       },
@@ -147,57 +154,67 @@ export default {
               "Content-Type": "application/json",
             },
             params: params,
-          }).then((pageResponse) => {
+          }).then(async (pageResponse) => {
             const data_from = pageResponse.data.issues;
+
             totalIssues = totalIssues.concat(data_from);
-            console.log(`Fetched Page ${i + 1}:`, data_from);
+
+            await Promise.all(
+              data_from.map(async (issue) => {
+                const issueKey = issue.key;
+                const worklogResponse = await this.$http({
+                  method: "GET",
+                  url: `http://localhost:8010/proxy/rest/api/2/issue/${issueKey}/worklog`,
+                  headers: {
+                    Authorization: authHeader,
+                    Accept: "application/json",
+                  },
+                });
+
+                const worklogs = worklogResponse.data.worklogs;
+                const today = new Date().toISOString().split("T")[0];
+
+                worklogs.map((worklog) => {
+                  const worklogDate = new Date(worklog.created)
+                    .toISOString()
+                    .split("T")[0];
+
+                  if (worklogDate === today) {
+                    const userId = worklog.author.displayName;
+                    const timeSpent = worklog.timeSpentSeconds || 0;
+
+                    if (!usersData[userId]) {
+                      usersData[userId] = {
+                        username: userId,
+                        statusCounts: { "In Progress": 0, "To Do": 0 },
+                        timeLoggedToday: 0,
+                      };
+                    }
+
+                    usersData[userId].timeLoggedToday += timeSpent;
+                  }
+                });
+
+                const status = issue.fields.status.statusCategory.name;
+                const userId = issue.fields.assignee.displayName;
+
+                if (!usersData[userId]) {
+                  usersData[userId] = {
+                    username: userId,
+                    statusCounts: { "In Progress": 0, "To Do": 0 },
+                    timeLoggedToday: 0,
+                  };
+                }
+
+                if (usersData[userId].statusCounts[status] !== undefined) {
+                  usersData[userId].statusCounts[status] += 1;
+                }
+              })
+            );
           });
         });
 
         await Promise.all(pagePromises);
-
-        this.table_data = totalIssues.map((x) => {
-          const priority = x.fields.priority
-            ? x.fields.priority.name
-            : "Unknown";
-          const status = x.fields.status
-            ? x.fields.status.statusCategory.name
-            : "-";
-          const userId = x.fields.assignee
-            ? x.fields.assignee.displayName
-            : "Unassigned";
-
-          if (!usersData[userId]) {
-            usersData[userId] = {
-              username: userId,
-              statusCounts: { "In Progress": 0, "To Do": 0 },
-              timeLoggedToday: 0,
-            };
-          }
-
-          if (usersData[userId].statusCounts[status] !== undefined) {
-            usersData[userId].statusCounts[status] += 1;
-          }
-
-          const worklogs = x.fields.worklog ? x.fields.worklog.worklogs : [];
-          const todayDate = new Date().toISOString().split("T")[0];
-          worklogs.forEach((log) => {
-            const logDate = new Date(log.started).toISOString().split("T")[0];
-            if (logDate === todayDate) {
-              usersData[userId].timeLoggedToday += log.timeSpentSeconds || 0;
-            }
-          });
-
-          return {
-            ticket_id: x.key,
-            ticket_label: x.fields.labels,
-            created_at: x.fields.created,
-            priority: priority,
-            status: status,
-          };
-        });
-
-        console.log("Fetched Data:", this.table_data);
 
         this.updateCharts(usersData);
       } catch (error) {
@@ -207,10 +224,21 @@ export default {
       }
     },
 
+    convertSecondsToTime(seconds) {
+      if (seconds <= 0) return "";
+
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+
+      const formattedMinutes = minutes < 10 ? "0" + minutes : minutes;
+
+      return `${hours}:${formattedMinutes}`;
+    },
+
     updateCharts(usersData) {
       const statusData = Object.values(usersData).map((user) => ({
         name: user.username,
-        value: Object.values(user.statusCounts).reduce(
+        tickets: Object.values(user.statusCounts).reduce(
           (acc, count) => acc + count,
           0
         ),
@@ -218,7 +246,11 @@ export default {
       }));
 
       this.option.yAxis.data = statusData.map((user) => user.name);
-      this.option.series[0].data = statusData.map((user) => user.value);
+      this.option.series[0].data = statusData.map((user) => user.tickets);
+
+      this.option.series[1].data = statusData.map(
+        (user) => user.timeLoggedToday
+      );
     },
   },
 

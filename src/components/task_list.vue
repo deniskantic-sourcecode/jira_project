@@ -10,7 +10,7 @@
             :headers="headers"
             :items="data_result"
             item-key="id"
-            :items-per-page="10"
+            :items-per-page="15"
           >
             <template v-if="!is_loading" v-slot:item="props">
               <tr>
@@ -90,7 +90,6 @@ export default {
       let result = "";
       const first_date = new Date(start_date);
       const current_date = new Date();
-      //zamijeniti petlju
       if (start_date !== "-") {
         if (current_date > first_date) {
           this.is_overdue = true;
@@ -125,8 +124,8 @@ export default {
     },
     async get_data() {
       this.is_loading = true;
-      let api_url =
-        "http://localhost:8010/proxy/rest/api/2/search?jql=project%20%3D%20PI%20AND%20assignee%20IS%20NOT%20EMPTY%20AND%20status%20%21%3D%20%22Done%22";
+
+      const base_url = "http://localhost:8010/proxy/rest/api/2/search";
       const authHeader =
         "Basic " +
         btoa(process.env.VUE_APP_EMAIL + ":" + process.env.VUE_APP_API_KEY);
@@ -134,30 +133,38 @@ export default {
       const maxResults = 50;
       let totalIssues = [];
 
+      const jql_params = {
+        jql: "project = PI AND assignee IS NOT EMPTY AND status != 'Done' AND priority in ('High', 'Highest')",
+        maxResults: maxResults,
+        startAt: 0,
+      };
+
       try {
         const response = await this.$http({
           method: "GET",
-          url: `${api_url}&startAt=0&maxResults=50`,
+          url: base_url,
           headers: {
             Authorization: authHeader,
             Accept: "application/json",
             "Content-Type": "application/json",
           },
+          params: jql_params,
         });
 
         const total = response.data.total;
-        const totalPages = Math.ceil(total / maxResults);
+        const total_pages = Math.ceil(total / maxResults);
 
-        const pagePromises = Array.from({ length: totalPages }).map((_, i) => {
-          const startAt = i * maxResults;
+        const pagePromises = Array.from({ length: total_pages }).map((_, i) => {
+          jql_params.startAt = i * maxResults; // Update startAt for pagination
           return this.$http({
             method: "GET",
-            url: `${api_url}&startAt=${startAt}&maxResults=${maxResults}`,
+            url: base_url,
             headers: {
               Authorization: authHeader,
               Accept: "application/json",
               "Content-Type": "application/json",
             },
+            params: jql_params,
           }).then((pageResponse) => {
             const data_from = pageResponse.data.issues;
             totalIssues = totalIssues.concat(data_from);
@@ -166,6 +173,7 @@ export default {
         });
 
         await Promise.all(pagePromises);
+
         this.data_result = totalIssues.map((x) => ({
           ticket_id: x.key,
           ticket_name: x.fields.summary,
